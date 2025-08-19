@@ -1,0 +1,9 @@
+{
+    "name": "com.my_company.scholarcore",
+    "description": "Native Messaging host for ScholarCore",
+    "path": "__PATH__",
+    "type": "stdio",
+    "allowed_origins": [
+        "chrome-extension://placeholderplaceholderplaceholder/"
+    ]
+}
