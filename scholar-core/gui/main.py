@@ -5,6 +5,8 @@ from kivy.clock import Clock
 from core import api, database
 from .widgets.listitem import ListItem
 from .widgets.detailview import DetailView
+from .widgets.infopopup import InfoPopup
+import traceback
 
 class ScholarCoreRoot(BoxLayout):
     item_list = ObjectProperty(None)
@@ -47,6 +49,11 @@ class ScholarCoreRoot(BoxLayout):
                 details_text += f"[b]{key.capitalize()}:[/b] {value}\n"
         self.detail_view.details = details_text
 
+    def show_popup(self, message, title="Aviso"):
+        """Exibe um popup com uma mensagem."""
+        popup = InfoPopup(message=message, title=title)
+        popup.open()
+
     def delete_selected_item(self):
         """Exclui o item atualmente exibido na DetailView."""
         if not self.detail_view.item_id:
@@ -54,18 +61,25 @@ class ScholarCoreRoot(BoxLayout):
 
         item_id_to_delete = int(self.detail_view.item_id)
 
-        # Chamar a API do Core
-        success = api.delete_item(item_id_to_delete)
+        try:
+            # Chamar a API do Core
+            success = api.delete_item(item_id_to_delete)
 
-        if success:
-            # Limpar a DetailView
-            self.detail_view.item_id = ''
-            self.detail_view.title = 'Selecione um item'
-            self.detail_view.authors = ''
-            self.detail_view.details = ''
+            if success:
+                # Limpar a DetailView
+                self.detail_view.item_id = ''
+                self.detail_view.title = 'Selecione um item'
+                self.detail_view.authors = ''
+                self.detail_view.details = ''
 
-            # Recarregar a lista de itens
-            self.load_items()
+                # Recarregar a lista de itens
+                self.load_items()
+                self.show_popup("Item excluído com sucesso.", "Sucesso")
+            else:
+                # Isso não deveria acontecer se o item_id for válido
+                self.show_popup("Não foi possível excluir o item.", "Erro")
+        except Exception as e:
+            self.show_popup(f"Ocorreu um erro:\n{e}\n\n{traceback.format_exc()}", "Erro de Exclusão")
 
 
 class ScholarApp(App):

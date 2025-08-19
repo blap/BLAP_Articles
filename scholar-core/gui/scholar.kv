@@ -68,6 +68,26 @@
         text_size: self.width, None
         halign: 'left'
 
+<InfoPopup>:
+    title: "Aviso"
+    size_hint: 0.6, 0.4
+    auto_dismiss: False
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: '10dp'
+        spacing: '10dp'
+
+        Label:
+            text: root.message
+            text_size: self.width, None
+            size_hint_y: 0.8
+
+        Button:
+            text: 'Ok'
+            size_hint_y: 0.2
+            on_press: root.dismiss()
+
     Label:
         text: root.authors
         font_size: '14sp'
