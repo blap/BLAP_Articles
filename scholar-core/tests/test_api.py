@@ -168,8 +168,8 @@ def test_linking_failures():
     assert not api.add_item_to_collection(item.id, 999)
     assert not api.add_tag_to_item(999, tag_id)
 
-@patch('core.api.requests.get')
-@patch('core.api.PdfReader')
+@patch('core.services.item_service.requests.get')
+@patch('core.services.item_service.PdfReader')
 def test_create_item_from_pdf(MockPdfReader, mock_requests_get):
     mock_response = Mock()
     mock_response.ok = True
@@ -216,7 +216,7 @@ def test_add_duplicate_associations():
     assert api.add_item_to_collection(item.id, collection_id) is True
     assert api.add_tag_to_item(item.id, tag_id) is True
 
-@patch('core.api.PdfReader', side_effect=Exception("Corrupted PDF"))
+@patch('core.services.item_service.PdfReader', side_effect=Exception("Corrupted PDF"))
 def test_create_item_from_corrupted_pdf(MockPdfReader):
     """Testa a criação de item a partir de um PDF que gera erro."""
     with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
