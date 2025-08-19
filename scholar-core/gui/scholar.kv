@@ -8,7 +8,7 @@
     padding: '5dp'
     canvas.before:
         Color:
-            rgba: (0.2, 0.2, 0.2, 1) if self.state == 'down' else (0.1, 0.1, 0.1, 1)
+            rgba: (0.2, 0.4, 0.6, 1) if self.selected else (0.1, 0.1, 0.1, 1)
         Rectangle:
             pos: self.pos
             size: self.size
@@ -47,13 +47,20 @@
         id: collections_tree_id
         size_hint_x: 0.2
 
-    ScrollView:
+    RecycleView:
+        id: item_list_id
         size_hint_x: 0.5
-        GridLayout:
-            id: item_list_id
-            cols: 1
+        viewclass: 'ListItem'
+        data: []
+
+        RecycleBoxLayout:
+            default_size: None, dp(48)
+            default_size_hint: 1, None
             size_hint_y: None
             height: self.minimum_height
+            orientation: 'vertical'
+            multiselect: False
+            touch_multiselect: False
 
     DetailView:
         id: detail_view_id
