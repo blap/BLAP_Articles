@@ -27,14 +27,15 @@ class ScholarCoreRoot(BoxLayout):
             else:
                 summaries = api.get_items_in_collection(collection_id)
 
-            self.item_list.clear_widgets()
-            for summary in summaries:
-                list_item = ListItem(
-                    item_id=summary['id'],
-                    title=summary['title'] or "Sem título",
-                    author_text=summary['author_text']
-                )
-                self.item_list.add_widget(list_item)
+            # Formatar dados para o RecycleView
+            self.item_list.data = [{
+                'item_id': s['id'],
+                'title': s['title'] or "Sem título",
+                'author_text': s['author_text'],
+                'update_available': False # O estado inicial é sem atualização
+            } for s in summaries]
+
+            self.item_list.refresh_from_data()
             self.trigger_background_checks()
         except Exception as e:
             self.show_popup(f"Falha ao carregar itens:\n{e}", "Erro de Banco de Dados")
@@ -68,11 +69,17 @@ class ScholarCoreRoot(BoxLayout):
         threading.Thread(target=plugin_manager.run_background_checks).start()
 
     def mark_items_as_updatable(self, item_ids: list):
-        for list_item in self.item_list.children:
-            if list_item.item_id in item_ids:
-                list_item.update_available = True
+        """Atualiza a UI para marcar itens que têm uma atualização disponível."""
+        # A alteração precisa ser feita nos dados, não nos widgets filhos.
+        for item_data in self.item_list.data:
+            if item_data['item_id'] in item_ids:
+                item_data['update_available'] = True
             else:
-                list_item.update_available = False
+                # Garantir que o estado seja resetado se não houver mais atualização
+                item_data['update_available'] = False
+
+        # Forçar a atualização da view a partir dos dados modificados
+        self.item_list.refresh_from_data()
 
     def show_popup(self, message, title="Aviso"):
         popup = InfoPopup(message=message, title=title)
