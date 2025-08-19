@@ -4,8 +4,6 @@ from pathlib import Path
 
 DB_FILE = Path.home() / ".scholarcore" / "library.duckdb"
 
-from pathlib import Path
-
 def initialize_database():
     """Cria o schema do banco de dados se ele não existir."""
     # A criação de diretório só é necessária para bancos de dados baseados em arquivo.
@@ -58,7 +56,57 @@ def initialize_database():
     );
     """)
 
-    # ... outras tabelas como 'collections', 'attachments', 'tags' ...
+    # Tabela para tags
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS tags (
+        id BIGINT PRIMARY KEY,
+        name VARCHAR UNIQUE NOT NULL
+    );
+    """)
+
+    # Tabela de junção para itens e tags
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS item_tags (
+        item_id BIGINT,
+        tag_id BIGINT,
+        PRIMARY KEY (item_id, tag_id),
+        FOREIGN KEY (item_id) REFERENCES items(id),
+        FOREIGN KEY (tag_id) REFERENCES tags(id)
+    );
+    """)
+
+    # Tabela para coleções
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS collections (
+        id BIGINT PRIMARY KEY,
+        name VARCHAR NOT NULL,
+        parent_id BIGINT,
+        FOREIGN KEY (parent_id) REFERENCES collections(id)
+    );
+    """)
+
+    # Tabela de junção para itens e coleções
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS item_collections (
+        item_id BIGINT,
+        collection_id BIGINT,
+        PRIMARY KEY (item_id, collection_id),
+        FOREIGN KEY (item_id) REFERENCES items(id),
+        FOREIGN KEY (collection_id) REFERENCES collections(id)
+    );
+    """)
+
+    # Tabela para anexos
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS attachments (
+        id BIGINT PRIMARY KEY,
+        item_id BIGINT,
+        path TEXT NOT NULL,
+        mime_type VARCHAR,
+        date_added TIMESTAMP DEFAULT current_timestamp,
+        FOREIGN KEY (item_id) REFERENCES items(id)
+    );
+    """)
 
     con.close()
 
