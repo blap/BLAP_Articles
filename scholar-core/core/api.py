@@ -1,5 +1,6 @@
 # core/api.py
 import time
+import duckdb
 from . import database
 from .plugin_manager import manager as plugin_manager
 import shutil
@@ -230,7 +231,7 @@ def add_item_to_collection(item_id: int, collection_id: int) -> bool:
             "INSERT INTO item_collections (item_id, collection_id) VALUES (?, ?)",
             (item_id, collection_id)
         )
-    except con.IntegrityError:
+    except duckdb.ConstraintException:
         # A associação já pode existir, o que não é um erro.
         pass
     finally:
@@ -307,7 +308,7 @@ def add_tag_to_item(item_id: int, tag_id: int) -> bool:
             "INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?)",
             (item_id, tag_id)
         )
-    except con.IntegrityError:
+    except duckdb.ConstraintException:
         # A associação já pode existir, o que não é um erro.
         pass
     finally:

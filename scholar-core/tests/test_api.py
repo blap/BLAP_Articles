@@ -194,3 +194,32 @@ def test_get_all_collections():
     assert len(collections) == 2
     child_coll = next(c for c in collections if c.name == "Child")
     assert child_coll.parent_id == parent_id
+
+def test_add_attachment_failures():
+    """Testa falhas na adição de anexos."""
+    item = api.add_item(Item(title="Item for attachments"))
+    # 1. Arquivo de origem não existe
+    assert api.add_attachment(item.id, "/path/to/non/existent/file.pdf") is None
+    # 2. Item não existe
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        assert api.add_attachment(999999, tmp.name) is None
+
+def test_add_duplicate_associations():
+    """Testa a adição de associações duplicadas (item-coleção, item-tag)."""
+    item = api.add_item(Item(title="Test Duplicates"))
+    collection_id = api.add_collection("Dup Collection")
+    tag_id = api.add_tag("dup-tag")
+    # Adicionar a primeira vez (sucesso)
+    assert api.add_item_to_collection(item.id, collection_id) is True
+    assert api.add_tag_to_item(item.id, tag_id) is True
+    # Adicionar a segunda vez (deve ser tratado graciosamente)
+    assert api.add_item_to_collection(item.id, collection_id) is True
+    assert api.add_tag_to_item(item.id, tag_id) is True
+
+@patch('core.api.PdfReader', side_effect=Exception("Corrupted PDF"))
+def test_create_item_from_corrupted_pdf(MockPdfReader):
+    """Testa a criação de item a partir de um PDF que gera erro."""
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        # O conteúdo do arquivo não importa, pois PdfReader será mockado
+        item = api.create_item_from_pdf(tmp.name)
+        assert item is None
