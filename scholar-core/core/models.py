@@ -10,6 +10,12 @@ class Creator:
     creator_type: Optional[str] = None
 
 @dataclass
+class Collection:
+    id: int
+    name: str
+    parent_id: Optional[int]
+
+@dataclass
 class Tag:
     id: int
     name: str

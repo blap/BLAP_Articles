@@ -1,6 +1,6 @@
 import pytest
 from core import api, database
-from core.models import Item, Creator
+from core.models import Item, Creator, Collection
 import os
 from pathlib import Path
 
@@ -155,6 +155,22 @@ def test_linking_failures():
     assert not api.add_item_to_collection(999, collection_id)
     assert not api.add_tag_to_item(item.id, 999)
     assert not api.add_tag_to_item(999, tag_id)
+
+
+def test_get_all_collections():
+    """Testa a recuperação de todas as coleções."""
+    parent_id = api.add_collection("Parent")
+    api.add_collection("Child", parent_id=parent_id)
+
+    collections = api.get_all_collections()
+    assert len(collections) == 2
+
+    parent_coll = next(c for c in collections if c.name == "Parent")
+    child_coll = next(c for c in collections if c.name == "Child")
+
+    assert parent_coll is not None
+    assert child_coll is not None
+    assert child_coll.parent_id == parent_coll.id
 
 
 def test_attachments():
