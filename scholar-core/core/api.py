@@ -2,59 +2,55 @@
 import time
 from . import database
 from .plugin_manager import manager as plugin_manager
+from .models import Item, Creator
 
-def add_item(item_data: dict) -> int:
+def add_item(item: Item) -> Item:
     """
     Adiciona um novo item à biblioteca.
-    `item_data` é um dicionário com 'item_type', 'metadata', 'creators'.
-    Retorna o ID do novo item.
+    Recebe um objeto Item e retorna o objeto Item com o ID e datas preenchidos.
     """
     con = database.get_connection()
 
-    # Usar um timestamp de alta precisão como ID
-    item_id = int(time.time() * 1_000_000)
+    # Gerar um novo ID para o item
+    item.id = int(time.time() * 1_000_000)
 
     # 1. Inserir na tabela 'items'
+    # O título também é armazenado nos metadados, mas tê-lo na tabela principal é bom para buscas rápidas.
     con.execute(
         "INSERT INTO items (id, item_type, title) VALUES (?, ?, ?)",
-        (item_id, item_data.get('item_type'), item_data.get('metadata', {}).get('title'))
+        (item.id, item.item_type, item.title)
     )
 
     # 2. Inserir metadados
-    if 'metadata' in item_data:
+    if item.metadata:
+        # Garante que o título do item esteja sincronizado com os metadados
+        item.metadata['title'] = item.title
         metadata_to_insert = [
-            (item_id, k, v) for k, v in item_data.get('metadata', {}).items()
+            (item.id, k, v) for k, v in item.metadata.items()
         ]
-        if metadata_to_insert:
-            con.executemany("INSERT INTO metadata (item_id, field, value) VALUES (?, ?, ?)", metadata_to_insert)
+        con.executemany("INSERT INTO metadata (item_id, field, value) VALUES (?, ?, ?)", metadata_to_insert)
 
     # 3. Processar e inserir criadores
-    creators_data = item_data.get('creators', [])
-    if creators_data:
+    if item.creators:
         item_creators_to_insert = []
-        for index, creator in enumerate(creators_data):
-            first_name = creator.get('first_name')
-            last_name = creator.get('last_name')
-            creator_type = creator.get('creator_type', 'author')
-
+        for index, creator in enumerate(item.creators):
             # Verificar se o criador já existe
             result = con.execute(
                 "SELECT id FROM creators WHERE first_name = ? AND last_name = ?",
-                (first_name, last_name)
+                (creator.first_name, creator.last_name)
             ).fetchone()
 
             if result:
-                creator_id = result[0]
+                creator.id = result[0]
             else:
-                # Inserir novo criador. Adicionar o índice ao timestamp ajuda a garantir
-                # um ID único se vários criadores forem adicionados na mesma fração de segundo.
-                creator_id = int(time.time() * 1_000_000) + index
+                # Inserir novo criador
+                creator.id = int(time.time() * 1_000_000) + index
                 con.execute(
                     "INSERT INTO creators (id, first_name, last_name) VALUES (?, ?, ?)",
-                    (creator_id, first_name, last_name)
+                    (creator.id, creator.first_name, creator.last_name)
                 )
 
-            item_creators_to_insert.append((item_id, creator_id, creator_type, index))
+            item_creators_to_insert.append((item.id, creator.id, creator.creator_type, index))
 
         # Inserir as associações item-criador
         con.executemany(
@@ -63,56 +59,48 @@ def add_item(item_data: dict) -> int:
         )
 
     con.close()
-    print(f"Item {item_id} adicionado com sucesso.")
 
     # Chamar hook de plugin
-    plugin_manager.hook_item_added(item_id)
+    plugin_manager.hook_item_added(item.id)
 
-    return item_id
+    # Retornar o item completo (sem datas, pois get_item as buscará)
+    # Para ter as datas, precisaríamos de outra chamada ao banco.
+    # Por enquanto, vamos retornar o item com o ID.
+    return item
 
-def get_item(item_id: int) -> dict | None:
+def get_item(item_id: int) -> Item | None:
     """
-    Recupera todos os dados de um item, incluindo metadados e criadores.
-    Retorna um dicionário com os dados do item ou None se não for encontrado.
+    Recupera todos os dados de um item e os retorna como um objeto Item.
     """
     con = database.get_connection()
 
-    # 1. Obter os dados principais do item
     item_row = con.execute("SELECT id, item_type, title, date_added, date_modified FROM items WHERE id = ?", (item_id,)).fetchone()
     if not item_row:
         con.close()
         return None
 
-    item_result = {
-        'id': item_row[0],
-        'item_type': item_row[1],
-        'title': item_row[2],
-        'date_added': item_row[3],
-        'date_modified': item_row[4],
-        'metadata': {},
-        'creators': []
-    }
+    item_result = Item(
+        id=item_row[0],
+        item_type=item_row[1],
+        title=item_row[2],
+        date_added=item_row[3],
+        date_modified=item_row[4]
+    )
 
-    # 2. Obter metadados
     metadata_rows = con.execute("SELECT field, value FROM metadata WHERE item_id = ?", (item_id,)).fetchall()
-    for row in metadata_rows:
-        item_result['metadata'][row[0]] = row[1]
+    item_result.metadata = {row[0]: row[1] for row in metadata_rows}
 
-    # 3. Obter criadores
     creator_rows = con.execute("""
-        SELECT c.first_name, c.last_name, ic.creator_type
+        SELECT c.id, c.first_name, c.last_name, ic.creator_type
         FROM item_creators ic
         JOIN creators c ON ic.creator_id = c.id
         WHERE ic.item_id = ?
         ORDER BY ic.order_index
     """, (item_id,)).fetchall()
 
-    for row in creator_rows:
-        item_result['creators'].append({
-            'first_name': row[0],
-            'last_name': row[1],
-            'creator_type': row[2]
-        })
+    item_result.creators = [Creator(id=row[0], first_name=row[1], last_name=row[2], creator_type=row[3]) for row in creator_rows]
+
+    # TODO: Implementar busca de tags e anexos
 
     con.close()
     return item_result
