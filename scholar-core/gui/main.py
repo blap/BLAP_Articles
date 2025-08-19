@@ -20,28 +20,35 @@ class ScholarCoreRoot(BoxLayout):
 
     def load_items(self, dt=None, collection_id=None):
         """Carrega os resumos dos itens e popula a lista na GUI."""
-        if collection_id is None:
-            summaries = api.get_all_items_summary()
-        else:
-            summaries = api.get_items_in_collection(collection_id)
+        try:
+            if collection_id is None:
+                summaries = api.get_all_items_summary()
+            else:
+                summaries = api.get_items_in_collection(collection_id)
 
-        self.item_list.clear_widgets()
-        for summary in summaries:
-            list_item = ListItem(
-                item_id=summary['id'],
-                title=summary['title'] or "Sem título",
-                author_text=summary.get('author_text', '') # get_items_in_collection não tem autor
-            )
-            self.item_list.add_widget(list_item)
+            self.item_list.clear_widgets()
+            for summary in summaries:
+                list_item = ListItem(
+                    item_id=summary['id'],
+                    title=summary['title'] or "Sem título",
+                    author_text=summary['author_text']
+                )
+                self.item_list.add_widget(list_item)
+        except Exception as e:
+            self.show_popup(f"Falha ao carregar itens:\n{e}", "Erro de Banco de Dados")
 
     def show_details_for_item(self, item_id):
         """Busca os detalhes de um item e atualiza a DetailView."""
-        item = api.get_item(item_id)
-        if not item:
-            return
+        try:
+            item = api.get_item(item_id)
+            if not item:
+                self.show_popup(f"Não foi possível encontrar o item com ID: {item_id}", "Erro")
+                return
 
-        self.detail_view.item_id = str(item.id)
-        self.detail_view.title = item.title or 'Sem título'
+            self.detail_view.item_id = str(item.id)
+            self.detail_view.title = item.title or 'Sem título'
+        except Exception as e:
+            self.show_popup(f"Falha ao buscar detalhes do item:\n{e}", "Erro")
 
         # Formatar criadores
         authors = ", ".join([f"{c.first_name or ''} {c.last_name or ''}".strip() for c in item.creators])
