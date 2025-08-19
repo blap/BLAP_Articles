@@ -56,5 +56,18 @@ class PluginManager:
             if hasattr(plugin, 'setup'):
                 plugin.setup(app_gui)
 
+    def run_background_checks(self):
+        """
+        Executa tarefas de verificação em segundo plano para todos os plugins
+        que as suportam.
+        """
+        print("Executando verificações de fundo dos plugins...")
+        for plugin in self.plugins:
+            if hasattr(plugin, 'check_all_items'):
+                # Idealmente, isso deveria rodar em uma thread separada para
+                # não bloquear a GUI, especialmente com chamadas de rede.
+                # A GUI pode usar threading para chamar este método.
+                plugin.check_all_items()
+
 # Instância global única do gerenciador de plugins
 manager = PluginManager()

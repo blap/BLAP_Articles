@@ -1,5 +1,5 @@
 from kivy.uix.boxlayout import BoxLayout
-from kivy.properties import StringProperty, NumericProperty
+from kivy.properties import StringProperty, NumericProperty, BooleanProperty
 
 class ListItem(BoxLayout):
     """
@@ -8,6 +8,7 @@ class ListItem(BoxLayout):
     item_id = NumericProperty(0)
     title = StringProperty('')
     author_text = StringProperty('')
+    update_available = BooleanProperty(False)
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):

@@ -8,8 +8,7 @@ from .widgets.detailview import DetailView
 from .widgets.infopopup import InfoPopup
 from .widgets.collectionstree import CollectionsTree
 import traceback
-
-class ScholarCoreRoot(BoxLayout):
+import threading
     item_list = ObjectProperty(None)
     detail_view = ObjectProperty(None)
 
@@ -34,6 +33,10 @@ class ScholarCoreRoot(BoxLayout):
                     author_text=summary['author_text']
                 )
                 self.item_list.add_widget(list_item)
+
+        # Iniciar a verificação de atualizações em segundo plano
+        self.trigger_background_checks()
+
         except Exception as e:
             self.show_popup(f"Falha ao carregar itens:\n{e}", "Erro de Banco de Dados")
 
@@ -64,6 +67,18 @@ class ScholarCoreRoot(BoxLayout):
         # Formatar anexos
         attachments_text = "\n".join([att.path for att in item.attachments])
         self.detail_view.attachments_text = attachments_text
+
+    def trigger_background_checks(self):
+        """Inicia as verificações de fundo dos plugins em uma thread separada."""
+        threading.Thread(target=plugin_manager.run_background_checks).start()
+
+    def mark_items_as_updatable(self, item_ids: list):
+        """Atualiza a UI para marcar itens que têm uma atualização disponível."""
+        for list_item in self.item_list.children:
+            if list_item.item_id in item_ids:
+                list_item.update_available = True
+            else:
+                list_item.update_available = False
 
     def show_popup(self, message, title="Aviso"):
         """Exibe um popup com uma mensagem."""
