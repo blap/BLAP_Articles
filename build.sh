@@ -10,8 +10,7 @@ VERSION="1.0.0"
 SRC_DIR="scholar-core"
 
 echo ">>> 1. Executando a suíte de testes..."
-python3 -m pytest "$SRC_DIR/"
-echo ">>> Testes concluídos com sucesso."
+python3 run_tests.py
 echo
 
 echo ">>> 2. Empacotando a aplicação com PyInstaller..."
