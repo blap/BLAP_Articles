@@ -1,6 +1,7 @@
 # core/api.py
 import time
 from . import database
+from .plugin_manager import manager as plugin_manager
 
 def add_item(item_data: dict) -> int:
     """
@@ -63,6 +64,10 @@ def add_item(item_data: dict) -> int:
 
     con.close()
     print(f"Item {item_id} adicionado com sucesso.")
+
+    # Chamar hook de plugin
+    plugin_manager.hook_item_added(item_id)
+
     return item_id
 
 def get_item(item_id: int) -> dict | None:
@@ -137,6 +142,10 @@ def delete_item(item_id: int) -> bool:
     con.execute("DELETE FROM items WHERE id = ?", (item_id,))
 
     con.close()
+
+    # Chamar hook de plugin
+    plugin_manager.hook_item_deleted(item_id)
+
     return True
 
 
@@ -174,6 +183,10 @@ def update_item(item_id: int, update_data: dict) -> bool:
     con.execute("UPDATE items SET date_modified = current_timestamp WHERE id = ?", (item_id,))
 
     con.close()
+
+    # Chamar hook de plugin
+    plugin_manager.hook_item_updated(item_id)
+
     return True
 
 

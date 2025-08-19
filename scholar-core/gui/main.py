@@ -72,7 +72,15 @@ class ScholarApp(App):
     def build(self):
         # Garante que o banco de dados está inicializado antes de rodar a app
         database.initialize_database()
-        return ScholarCoreRoot()
+
+        # Cria a instância do widget raiz
+        root_widget = ScholarCoreRoot()
+
+        # Conecta os plugins à GUI
+        from core.plugin_manager import manager as plugin_manager
+        plugin_manager.initialize_gui(root_widget)
+
+        return root_widget
 
 if __name__ == '__main__':
     ScholarApp().run()

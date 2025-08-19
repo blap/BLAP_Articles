@@ -1,3 +1,4 @@
 duckdb
 pytest
 Kivy
+requests
