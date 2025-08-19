@@ -7,7 +7,7 @@ class Creator:
     id: Optional[int] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    creator_type: Optional[str] = None
+    creator_type: str = 'author'
 
 @dataclass
 class Collection:

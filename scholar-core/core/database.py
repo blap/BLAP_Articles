@@ -1,16 +1,31 @@
 # core/database.py
 import duckdb
-from pathlib import Path
+import os
+import sys
 
-DB_FILE = Path.home() / ".scholarcore" / "library.duckdb"
+# Determina o diretório base da aplicação
+if getattr(sys, 'frozen', False):
+    # Se estiver rodando como um executável empacotado
+    application_path = os.path.dirname(sys.executable)
+else:
+    # Se estiver rodando como um script .py normal
+    # __file__ é .../scholar-core/core/database.py, então precisamos de dois .parent
+    application_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Define o caminho para o diretório de dados e o arquivo do banco de dados
+DATA_DIR = os.path.join(application_path, 'data')
+DB_FILE = os.path.join(DATA_DIR, 'library.duckdb')
+
 
 def initialize_database():
     """Cria o schema do banco de dados se ele não existir."""
     # A criação de diretório só é necessária para bancos de dados baseados em arquivo.
-    if isinstance(DB_FILE, Path):
-        DB_FILE.parent.mkdir(exist_ok=True)
+    # O teste usará um caminho em branco, então verifique se DB_FILE não está vazio.
+    if DB_FILE:
+        db_dir = os.path.dirname(DB_FILE)
+        os.makedirs(db_dir, exist_ok=True)
 
-    con = duckdb.connect(str(DB_FILE))
+    con = duckdb.connect(DB_FILE)
 
     # Tabela principal para itens bibliográficos
     con.execute("""
