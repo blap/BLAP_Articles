@@ -31,23 +31,27 @@ class ScholarCoreRoot(BoxLayout):
 
     def show_details_for_item(self, item_id):
         """Busca os detalhes de um item e atualiza a DetailView."""
-        item_data = api.get_item(item_id)
-        if not item_data:
+        item = api.get_item(item_id)
+        if not item:
             return
 
-        self.detail_view.item_id = str(item_data['id'])
-        self.detail_view.title = item_data.get('title', 'Sem título')
+        self.detail_view.item_id = str(item.id)
+        self.detail_view.title = item.title or 'Sem título'
 
         # Formatar criadores
-        authors = ", ".join([f"{c.get('first_name', '')} {c.get('last_name', '')}".strip() for c in item_data['creators']])
+        authors = ", ".join([f"{c.first_name or ''} {c.last_name or ''}".strip() for c in item.creators])
         self.detail_view.authors = authors
 
         # Formatar outros metadados
         details_text = ""
-        for key, value in item_data['metadata'].items():
-            if key != 'title': # O título já é exibido
+        for key, value in item.metadata.items():
+            if key.lower() != 'title': # O título já é exibido
                 details_text += f"[b]{key.capitalize()}:[/b] {value}\n"
         self.detail_view.details = details_text
+
+        # Formatar anexos
+        attachments_text = "\n".join([att.path for att in item.attachments])
+        self.detail_view.attachments_text = attachments_text
 
     def show_popup(self, message, title="Aviso"):
         """Exibe um popup com uma mensagem."""

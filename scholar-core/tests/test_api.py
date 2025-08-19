@@ -155,3 +155,37 @@ def test_linking_failures():
     assert not api.add_item_to_collection(999, collection_id)
     assert not api.add_tag_to_item(item.id, 999)
     assert not api.add_tag_to_item(999, tag_id)
+
+
+def test_attachments():
+    """Testa a adição e recuperação de anexos."""
+    import tempfile
+    import shutil
+
+    # 1. Setup: criar um arquivo dummy
+    with tempfile.TemporaryDirectory() as temp_dir:
+        dummy_file_path = Path(temp_dir) / "test_document.pdf"
+        with open(dummy_file_path, "w") as f:
+            f.write("This is a test PDF.")
+
+        # 2. Adicionar um item e anexar o arquivo
+        item = api.add_item(Item(title="Item with Attachment"))
+        attachment = api.add_attachment(item.id, str(dummy_file_path))
+
+        assert attachment is not None
+        assert attachment.item_id == item.id
+        assert attachment.mime_type == "application/pdf"
+        assert Path(attachment.path).name == "test_document.pdf"
+
+        # 3. Verificar se o arquivo foi copiado para o armazenamento
+        storage_path = database.DB_FILE.parent / "storage" / attachment.path
+        assert storage_path.exists()
+
+        # 4. Recuperar o item e verificar se o anexo está lá
+        retrieved_item = api.get_item(item.id)
+        assert len(retrieved_item.attachments) == 1
+        assert retrieved_item.attachments[0].id == attachment.id
+        assert retrieved_item.attachments[0].path == attachment.path
+
+        # 5. Limpeza do diretório de armazenamento
+        shutil.rmtree(database.DB_FILE.parent / "storage")
