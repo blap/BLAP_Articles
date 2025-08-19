@@ -6,7 +6,7 @@ import shutil
 import mimetypes
 import os
 from pathlib import Path
-from .models import Item, Creator, Tag, Attachment
+from .models import Item, Creator, Tag, Attachment, Collection
 
 def add_item(item: Item) -> Item:
     """
@@ -240,14 +240,31 @@ def get_items_in_collection(collection_id: int) -> list:
     """Retorna uma lista de resumos de itens em uma coleção específica."""
     con = database.get_connection()
     items = con.execute("""
-        SELECT i.id, i.item_type, i.title
+        SELECT
+            i.id,
+            i.item_type,
+            i.title,
+            (SELECT c.last_name FROM creators c JOIN item_creators ic_sub ON c.id = ic_sub.creator_id WHERE ic_sub.item_id = i.id AND ic_sub.creator_type = 'author' ORDER BY ic_sub.order_index LIMIT 1) AS first_author
         FROM items i
         JOIN item_collections ic ON i.id = ic.item_id
         WHERE ic.collection_id = ?
         ORDER BY i.date_added DESC
     """, (collection_id,)).fetchall()
     con.close()
-    return [{'id': row[0], 'item_type': row[1], 'title': row[2]} for row in items]
+    return [{
+        'id': row[0],
+        'item_type': row[1],
+        'title': row[2],
+        'author_text': row[3] if row[3] else ''
+    } for row in items]
+
+
+def get_all_collections() -> list[Collection]:
+    """Retorna uma lista de todas as coleções."""
+    con = database.get_connection()
+    rows = con.execute("SELECT id, name, parent_id FROM collections ORDER BY name").fetchall()
+    con.close()
+    return [Collection(id=row[0], name=row[1], parent_id=row[2]) for row in rows]
 
 
 def add_tag(name: str) -> int:

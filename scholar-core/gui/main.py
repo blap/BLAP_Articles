@@ -6,6 +6,7 @@ from core import api, database
 from .widgets.listitem import ListItem
 from .widgets.detailview import DetailView
 from .widgets.infopopup import InfoPopup
+from .widgets.collectionstree import CollectionsTree
 import traceback
 
 class ScholarCoreRoot(BoxLayout):
@@ -17,15 +18,19 @@ class ScholarCoreRoot(BoxLayout):
         # Adiar o carregamento para garantir que a UI esteja pronta
         Clock.schedule_once(self.load_items)
 
-    def load_items(self, dt=None):
+    def load_items(self, dt=None, collection_id=None):
         """Carrega os resumos dos itens e popula a lista na GUI."""
-        summaries = api.get_all_items_summary()
+        if collection_id is None:
+            summaries = api.get_all_items_summary()
+        else:
+            summaries = api.get_items_in_collection(collection_id)
+
         self.item_list.clear_widgets()
         for summary in summaries:
             list_item = ListItem(
                 item_id=summary['id'],
                 title=summary['title'] or "Sem título",
-                author_text=summary['author_text']
+                author_text=summary.get('author_text', '') # get_items_in_collection não tem autor
             )
             self.item_list.add_widget(list_item)
 
