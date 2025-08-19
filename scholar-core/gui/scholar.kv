@@ -1,0 +1,95 @@
+#:kivy 2.0.0
+
+<ListItem>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: '48dp'
+    padding: '5dp'
+    # Adicionar uma propriedade para feedback visual ao clicar
+    canvas.before:
+        Color:
+            rgba: (0.2, 0.2, 0.2, 1) if self.state == 'down' else (0.1, 0.1, 0.1, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    Label:
+        text: root.title
+        font_size: '16sp'
+        halign: 'left'
+        valign: 'top'
+        size: self.texture_size
+        text_size: self.width, None
+
+    Label:
+        text: root.author_text
+        font_size: '12sp'
+        color: (0.7, 0.7, 0.7, 1)
+        halign: 'left'
+        valign: 'top'
+        size: self.texture_size
+        text_size: self.width, None
+
+<ScholarCoreRoot>:
+    orientation: 'horizontal'
+    item_list: item_list_id
+    detail_view: detail_view_id
+
+    # Painel 1: Coleções (simplificado)
+    BoxLayout:
+        size_hint_x: 0.2
+        Label:
+            text: 'Coleções'
+
+    # Painel 2: Lista de Itens
+    ScrollView:
+        size_hint_x: 0.5
+        GridLayout:
+            id: item_list_id
+            cols: 1
+            size_hint_y: None
+            height: self.minimum_height
+
+    # Painel 3: Detalhes do Item
+    DetailView:
+        id: detail_view_id
+        size_hint_x: 0.3
+<DetailView>:
+    orientation: 'vertical'
+    padding: '10dp'
+    spacing: '10dp'
+
+    Label:
+        text: root.title
+        font_size: '18sp'
+        bold: True
+        size_hint_y: None
+        height: self.texture_size[1]
+        text_size: self.width, None
+        halign: 'left'
+
+    Label:
+        text: root.authors
+        font_size: '14sp'
+        color: (0.8, 0.8, 0.8, 1)
+        size_hint_y: None
+        height: self.texture_size[1]
+        text_size: self.width, None
+        halign: 'left'
+
+    ScrollView:
+        Label:
+            text: root.details
+            font_size: '12sp'
+            text_size: self.width, None
+            size_hint_y: None
+            height: self.texture_size[1]
+            halign: 'left'
+
+    BoxLayout:
+        size_hint_y: None
+        height: '40dp'
+        Button:
+            text: 'Deletar Item'
+            disabled: not root.item_id # Desabilitar se nenhum item estiver selecionado
+            on_press: app.root.delete_selected_item()
