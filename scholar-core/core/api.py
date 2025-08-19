@@ -5,8 +5,11 @@ from .plugin_manager import manager as plugin_manager
 import shutil
 import mimetypes
 import os
+import re
+import requests
 from pathlib import Path
 from .models import Item, Creator, Tag, Attachment, Collection
+from PyPDF2 import PdfReader
 
 def add_item(item: Item) -> Item:
     """
@@ -373,6 +376,72 @@ def add_attachment(item_id: int, source_path_str: str) -> Attachment | None:
         date_added=None # Poderia ser lido do DB para ser preciso
     )
     return new_attachment
+
+
+def create_item_from_pdf(file_path_str: str) -> Item | None:
+    """
+    Tenta extrair metadados de um arquivo PDF, criar um novo item,
+    e anexar o PDF a ele.
+    """
+    file_path = Path(file_path_str)
+    if not file_path.exists():
+        return None
+
+    try:
+        reader = PdfReader(file_path)
+        pdf_meta = reader.metadata
+
+        # Tenta extrair um título inicial
+        title = pdf_meta.title or file_path.stem.replace('_', ' ').replace('-', ' ')
+
+        # Tenta extrair o DOI do texto
+        doi = None
+        for page in reader.pages:
+            text = page.extract_text()
+            # Regex simples para encontrar um DOI
+            match = re.search(r'10\.\d{4,9}/[-._;()/:A-Z0-9]+', text, re.IGNORECASE)
+            if match:
+                doi = match.group(0)
+                break
+
+        item = Item(title=title, item_type='journalArticle')
+        item.metadata['source_file'] = file_path.name
+
+        # Se encontrou DOI, busca metadados no CrossRef
+        if doi:
+            item.metadata['doi'] = doi
+            try:
+                # Lógica similar ao plugin de exemplo
+                resp = requests.get(f"https://api.crossref.org/works/{doi}")
+                if resp.ok:
+                    crossref_data = resp.json()['message']
+                    item.title = crossref_data.get('title', [item.title])[0]
+                    item.metadata['title'] = item.title
+
+                    if 'author' in crossref_data:
+                        for author in crossref_data['author']:
+                            item.creators.append(Creator(
+                                first_name=author.get('given'),
+                                last_name=author.get('family'),
+                                creator_type='author'
+                            ))
+            except requests.RequestException:
+                pass # Falha silenciosamente se a rede estiver offline
+
+        # Salva o novo item no banco
+        new_item = add_item(item)
+
+        # Anexa o arquivo PDF ao item recém-criado
+        add_attachment(new_item.id, file_path_str)
+
+        # Retorna o item completo
+        return get_item(new_item.id)
+
+    except Exception as e:
+        # Lidar com PDFs corrompidos ou outros erros
+        # No futuro, isso poderia retornar uma mensagem de erro para a GUI
+        print(f"Erro ao processar PDF {file_path_str}: {e}")
+        return None
 
 
 def search_items(query: str) -> list:

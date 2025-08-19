@@ -2,3 +2,4 @@ duckdb
 pytest
 Kivy
 requests
+PyPDF2

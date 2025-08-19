@@ -3,6 +3,7 @@ from core import api, database
 from core.models import Item, Creator, Collection
 import os
 from pathlib import Path
+from unittest.mock import patch, Mock
 
 TEST_DB_FILE = Path("test_library.duckdb")
 
@@ -155,6 +156,58 @@ def test_linking_failures():
     assert not api.add_item_to_collection(999, collection_id)
     assert not api.add_tag_to_item(item.id, 999)
     assert not api.add_tag_to_item(999, tag_id)
+
+
+@patch('core.api.requests.get')
+@patch('core.api.PdfReader')
+def test_create_item_from_pdf(MockPdfReader, mock_requests_get):
+    """Testa a criação de um item a partir de um arquivo PDF."""
+    import tempfile
+    import shutil
+
+    # 1. Configurar Mocks
+    # Mock para a resposta da API CrossRef
+    mock_response = Mock()
+    mock_response.ok = True
+    mock_response.json.return_value = {
+        'message': {
+            'title': ['Mocked PDF Title'],
+            'author': [{'given': 'John', 'family': 'Doe'}]
+        }
+    }
+    mock_requests_get.return_value = mock_response
+
+    # Mock para o leitor de PDF
+    mock_pdf_instance = MockPdfReader.return_value
+    mock_pdf_instance.metadata.title = "Original PDF Title"
+    mock_page = Mock()
+    mock_page.extract_text.return_value = "Some text with a DOI: 10.1234/mock.doi"
+    mock_pdf_instance.pages = [mock_page]
+
+    # 2. Setup: criar um arquivo dummy
+    with tempfile.TemporaryDirectory() as temp_dir:
+        dummy_file_path = Path(temp_dir) / "test.pdf"
+        dummy_file_path.touch() # Criar arquivo vazio, o conteúdo será mockado
+
+        # 3. Chamar a função a ser testada
+        item = api.create_item_from_pdf(str(dummy_file_path))
+
+        # 4. Asserts
+        assert item is not None
+        assert item.title == "Mocked PDF Title"
+        assert len(item.creators) == 1
+        assert item.creators[0].first_name == "John"
+        assert item.metadata['doi'] == "10.1234/mock.doi"
+
+        # Verificar se o anexo foi criado
+        assert len(item.attachments) == 1
+        assert item.attachments[0].path.endswith("test.pdf")
+
+        # Verificar se a chamada à API foi feita
+        mock_requests_get.assert_called_with("https://api.crossref.org/works/10.1234/mock.doi")
+
+        # 5. Limpeza
+        shutil.rmtree(database.DB_FILE.parent / "storage")
 
 
 def test_get_all_collections():
