@@ -2,7 +2,11 @@
 import time
 from . import database
 from .plugin_manager import manager as plugin_manager
-from .models import Item, Creator
+import shutil
+import mimetypes
+import os
+from pathlib import Path
+from .models import Item, Creator, Tag, Attachment
 
 def add_item(item: Item) -> Item:
     """
@@ -100,7 +104,22 @@ def get_item(item_id: int) -> Item | None:
 
     item_result.creators = [Creator(id=row[0], first_name=row[1], last_name=row[2], creator_type=row[3]) for row in creator_rows]
 
-    # TODO: Implementar busca de tags e anexos
+    tag_rows = con.execute("""
+        SELECT t.id, t.name
+        FROM tags t
+        JOIN item_tags it ON t.id = it.tag_id
+        WHERE it.item_id = ?
+        ORDER BY t.name
+    """, (item_id,)).fetchall()
+    item_result.tags = [Tag(id=row[0], name=row[1]) for row in tag_rows]
+
+    attachment_rows = con.execute("""
+        SELECT id, item_id, path, mime_type, date_added
+        FROM attachments
+        WHERE item_id = ?
+        ORDER BY date_added
+    """, (item_id,)).fetchall()
+    item_result.attachments = [Attachment(id=row[0], item_id=row[1], path=row[2], mime_type=row[3], date_added=row[4]) for row in attachment_rows]
 
     con.close()
     return item_result
@@ -289,6 +308,54 @@ def get_item_tags(item_id: int) -> list:
     """, (item_id,)).fetchall()
     con.close()
     return [{'id': row[0], 'name': row[1]} for row in tags]
+
+
+def add_attachment(item_id: int, source_path_str: str) -> Attachment | None:
+    """Copia um arquivo para a biblioteca e o anexa a um item."""
+    source_path = Path(source_path_str)
+    if not source_path.exists():
+        return None # O arquivo de origem não existe
+
+    con = database.get_connection()
+
+    # Verificar se o item existe
+    item_exists = con.execute("SELECT id FROM items WHERE id = ?", (item_id,)).fetchone()
+    if not item_exists:
+        con.close()
+        return None
+
+    # Definir o diretório de armazenamento da biblioteca
+    storage_dir = database.DB_FILE.parent / "storage"
+
+    # Gerar um ID para o anexo e criar um subdiretório para ele
+    attachment_id = int(time.time() * 1_000_000)
+    attachment_dir = storage_dir / str(attachment_id)
+    attachment_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copiar o arquivo
+    destination_path = attachment_dir / source_path.name
+    shutil.copy(source_path, destination_path)
+
+    # Determinar o tipo MIME
+    mime_type, _ = mimetypes.guess_type(destination_path)
+
+    # Salvar no banco de dados
+    db_path = str(destination_path.relative_to(storage_dir))
+    con.execute(
+        "INSERT INTO attachments (id, item_id, path, mime_type) VALUES (?, ?, ?, ?)",
+        (attachment_id, item_id, db_path, mime_type)
+    )
+    con.close()
+
+    # Retornar o objeto Attachment
+    new_attachment = Attachment(
+        id=attachment_id,
+        item_id=item_id,
+        path=db_path,
+        mime_type=mime_type,
+        date_added=None # Poderia ser lido do DB para ser preciso
+    )
+    return new_attachment
 
 
 def search_items(query: str) -> list:

@@ -9,3 +9,4 @@ class DetailView(BoxLayout):
     title = StringProperty('Selecione um item')
     authors = StringProperty('')
     details = StringProperty('') # Para outros metadados
+    attachments_text = StringProperty('')
