@@ -1,10 +1,11 @@
 from kivy.uix.treeview import TreeView, TreeViewLabel
+from kivy.properties import ObjectProperty
 from kivy.clock import Clock
 from kivy.app import App
 from core import api
 
 class CollectionNode(TreeViewLabel):
-    collection_id = None
+    collection_id = ObjectProperty(None, allownone=True)
 
 class CollectionsTree(TreeView):
     def __init__(self, **kwargs):
