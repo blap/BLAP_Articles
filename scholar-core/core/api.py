@@ -190,19 +190,29 @@ def add_collection(name: str, parent_id: int | None = None) -> int:
 
 
 def add_item_to_collection(item_id: int, collection_id: int) -> bool:
-    """Adiciona um item a uma coleção."""
-    # TODO: Verificar se item e coleção existem
+    """Adiciona um item a uma coleção, verificando se ambos existem."""
     con = database.get_connection()
+
+    # Verificar se o item e a coleção existem
+    item_exists = con.execute("SELECT id FROM items WHERE id = ?", (item_id,)).fetchone()
+    collection_exists = con.execute("SELECT id FROM collections WHERE id = ?", (collection_id,)).fetchone()
+
+    if not item_exists or not collection_exists:
+        con.close()
+        return False
+
+    # Inserir a associação
     try:
         con.execute(
             "INSERT INTO item_collections (item_id, collection_id) VALUES (?, ?)",
             (item_id, collection_id)
         )
-    except Exception:
-        # Poderia ser mais específico (ex: erro de chave estrangeira)
+    except con.IntegrityError:
+        # A associação já pode existir, o que não é um erro.
+        pass
+    finally:
         con.close()
-        return False
-    con.close()
+
     return True
 
 
@@ -240,18 +250,29 @@ def add_tag(name: str) -> int:
 
 
 def add_tag_to_item(item_id: int, tag_id: int) -> bool:
-    """Adiciona uma tag a um item."""
-    # TODO: Verificar se item e tag existem
+    """Adiciona uma tag a um item, verificando se ambos existem."""
     con = database.get_connection()
+
+    # Verificar se o item e a tag existem
+    item_exists = con.execute("SELECT id FROM items WHERE id = ?", (item_id,)).fetchone()
+    tag_exists = con.execute("SELECT id FROM tags WHERE id = ?", (tag_id,)).fetchone()
+
+    if not item_exists or not tag_exists:
+        con.close()
+        return False
+
+    # Inserir a associação
     try:
         con.execute(
             "INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?)",
             (item_id, tag_id)
         )
-    except Exception:
+    except con.IntegrityError:
+        # A associação já pode existir, o que não é um erro.
+        pass
+    finally:
         con.close()
-        return False
-    con.close()
+
     return True
 
 
@@ -290,16 +311,31 @@ def search_items(query: str) -> list:
 
 
 def get_all_items_summary() -> list:
-    """Retorna uma lista de resumos de todos os itens para exibição na GUI."""
+    """
+    Retorna uma lista de resumos de todos os itens, incluindo um autor principal
+    para exibição na GUI.
+    """
     con = database.get_connection()
-    # Query para juntar 'items', 'metadata' (para título) e 'item_creators'
-    # Exemplo simplificado:
     items = con.execute("""
-        SELECT i.id, i.item_type, i.title
+        SELECT
+            i.id,
+            i.item_type,
+            i.title,
+            (SELECT c.last_name
+             FROM creators c
+             JOIN item_creators ic ON c.id = ic.creator_id
+             WHERE ic.item_id = i.id AND ic.creator_type = 'author'
+             ORDER BY ic.order_index
+             LIMIT 1) AS first_author
         FROM items i
         ORDER BY i.date_added DESC
     """).fetchall()
     con.close()
-    return [{'id': row[0], 'item_type': row[1], 'title': row[2]} for row in items]
+    return [{
+        'id': row[0],
+        'item_type': row[1],
+        'title': row[2],
+        'author_text': row[3] if row[3] else ''
+    } for row in items]
 
 # ... outras funções: update_item, delete_item, get_items_by_collection, etc.

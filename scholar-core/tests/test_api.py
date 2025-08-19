@@ -40,7 +40,7 @@ def test_add_item_success():
             "title": "A Test-Driven Approach to Science",
             "doi": "10.1234/test.5678"
         },
-        "creators": [] # Simplificado
+        "creators": [{"first_name": "Ada", "last_name": "Lovelace", "creator_type": "author"}]
     }
 
     item_id = api.add_item(item_data)
@@ -50,6 +50,7 @@ def test_add_item_success():
     retrieved_items = api.get_all_items_summary()
     assert len(retrieved_items) == 1
     assert retrieved_items[0]['title'] == "A Test-Driven Approach to Science"
+    assert retrieved_items[0]['author_text'] == "Lovelace"
 
 
 def test_add_item_with_creators():
@@ -320,3 +321,51 @@ def test_search_items():
     # Busca sem resultados
     results_none = api.search_items("nonexistentterm")
     assert len(results_none) == 0
+
+
+def test_add_item_edge_cases():
+    """Testa a adição de itens com dados mínimos ou ausentes."""
+    # 1. Adicionar item sem metadados e sem criadores
+    item1_data = {"item_type": "note"}
+    item1_id = api.add_item(item1_data)
+    retrieved1 = api.get_item(item1_id)
+    assert retrieved1 is not None
+    assert retrieved1['title'] is None
+    assert retrieved1['metadata'] == {}
+    assert retrieved1['creators'] == []
+
+    # 2. Adicionar item com metadados, mas sem título
+    item2_data = {
+        "item_type": "document",
+        "metadata": {"author": "Anonymous"}
+    }
+    item2_id = api.add_item(item2_data)
+    retrieved2 = api.get_item(item2_id)
+    assert retrieved2 is not None
+    assert retrieved2['title'] is None
+    assert retrieved2['metadata'] == {"author": "Anonymous"}
+
+
+def test_linking_failures():
+    """Testa falhas ao vincular entidades que não existem."""
+    # 1. Setup
+    item_id = api.add_item({"item_type": "note", "metadata": {"title": "My Note"}})
+    collection_id = api.add_collection("My Collection")
+    tag_id = api.add_tag("my-tag")
+    non_existent_id = 999999
+
+    # 2. Testar `add_item_to_collection`
+    # Item válido, coleção inválida
+    result1 = api.add_item_to_collection(item_id, non_existent_id)
+    assert result1 is False
+    # Item inválido, coleção válida
+    result2 = api.add_item_to_collection(non_existent_id, collection_id)
+    assert result2 is False
+
+    # 3. Testar `add_tag_to_item`
+    # Item válido, tag inválida
+    result3 = api.add_tag_to_item(item_id, non_existent_id)
+    assert result3 is False
+    # Item inválido, tag válida
+    result4 = api.add_tag_to_item(non_existent_id, tag_id)
+    assert result4 is False
