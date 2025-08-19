@@ -3,3 +3,4 @@ pytest
 Kivy
 requests
 PyPDF2
+pyinstaller

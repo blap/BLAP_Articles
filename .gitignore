@@ -1,0 +1,18 @@
+# Build artifacts
+/build/
+/dist/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local data and test files
+*.db
+/test_data/
+/scholar-core/data/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
