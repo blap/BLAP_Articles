@@ -345,22 +345,22 @@ def add_attachment(item_id: int, source_path_str: str) -> Attachment | None:
         return None
 
     # Definir o diretório de armazenamento da biblioteca
-    storage_dir = database.DB_FILE.parent / "storage"
+    storage_dir = os.path.join(database.DATA_DIR, "storage")
 
     # Gerar um ID para o anexo e criar um subdiretório para ele
     attachment_id = int(time.time() * 1_000_000)
-    attachment_dir = storage_dir / str(attachment_id)
-    attachment_dir.mkdir(parents=True, exist_ok=True)
+    attachment_dir = os.path.join(storage_dir, str(attachment_id))
+    os.makedirs(attachment_dir, exist_ok=True)
 
     # Copiar o arquivo
-    destination_path = attachment_dir / source_path.name
+    destination_path = os.path.join(attachment_dir, source_path.name)
     shutil.copy(source_path, destination_path)
 
     # Determinar o tipo MIME
     mime_type, _ = mimetypes.guess_type(destination_path)
 
     # Salvar no banco de dados
-    db_path = str(destination_path.relative_to(storage_dir))
+    db_path = os.path.relpath(destination_path, storage_dir)
     con.execute(
         "INSERT INTO attachments (id, item_id, path, mime_type) VALUES (?, ?, ?, ?)",
         (attachment_id, item_id, db_path, mime_type)
